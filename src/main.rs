@@ -1,9 +1,8 @@
 #![allow(dead_code)]
 
-use itertools::Itertools;
-
 use ansi_term::Color::{Blue, Green, Red};
 use futures::future::join_all;
+use itertools::Itertools;
 use sha2::{Digest, Sha256};
 use shellexpand;
 use std::io::BufRead;
@@ -15,13 +14,13 @@ use tokio::prelude::*;
 #[derive(Error, Debug)]
 enum Error {
     #[error("Can't get data from url")]
-    RequestError(#[from] reqwest::Error),
+    Request(#[from] reqwest::Error),
 
     #[error("Status")]
-    WithStatusError(reqwest::StatusCode),
+    WithStatus(reqwest::StatusCode),
 
     #[error("Can't open file")]
-    FileError(#[from] tokio::io::Error),
+    File(#[from] tokio::io::Error),
 }
 
 #[derive(Debug, PartialEq)]
@@ -45,7 +44,7 @@ fn hash_eq(buf1: &[u8], buf2: &[u8]) -> bool {
 async fn process(dt: &DownloadTask) -> Result<State, Error> {
     let response = reqwest::get(&dt.remote_url).await?;
     if !response.status().is_success() {
-        return Err(Error::WithStatusError(response.status()));
+        return Err(Error::WithStatus(response.status()));
     }
 
     let bytes_remote = response.bytes().await?;
@@ -68,7 +67,7 @@ async fn process(dt: &DownloadTask) -> Result<State, Error> {
                     .open(&local_path)
                     .await?
             } else {
-                return Err(Error::FileError(e));
+                return Err(Error::File(e));
             }
         }
     };
@@ -139,7 +138,7 @@ async fn main() -> Result<(), Error> {
                     .bold()
                     .paint(format!("{:<width$}", f.local_path, width = width))
             ),
-            Err(Error::WithStatusError(status)) => format!(
+            Err(Error::WithStatus(status)) => format!(
                 "{} {}",
                 Red.bold()
                     .paint(format!("{:<width$}", f.local_path, width = width)),
